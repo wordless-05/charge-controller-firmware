@@ -22,68 +22,57 @@ static bool charging = false;
 
 #define SLEEP_TIME_MS 	(1000/60/NUM_LEDS)		// 60 Hz
 
-void leds_update_thread()
+int led_count = 0;
+int flicker_count = 0;
+bool flicker_state = 1;
+struct device *led_devs[NUM_LED_PINS];
+
+void leds_update_thread(struct k_timer *timer_id)
 {
-    int led_count = 0;
-    int flicker_count = 0;
-    bool flicker_state = 1;
-    struct device *led_devs[NUM_LED_PINS];
-
-    int wdt_channel = sw_watchdog_register(1000);
-
     for (int pin = 0; pin < NUM_LED_PINS; pin++) {
-        led_devs[pin] = device_get_binding(led_ports[pin]);
+    led_devs[pin] = device_get_binding(led_ports[pin]);
     }
 
-    leds_init();
+    // could be increased to value >NUM_LEDS to reduce on-time
+    if (led_count >= NUM_LEDS) {
+        led_count = 0;
+    }
 
-    while (1) {
+    if (flicker_count > 30) {
+        flicker_count = 0;
+        flicker_state = !flicker_state;
+    }
 
-        sw_watchdog_feed(wdt_channel);
-
-        // could be increased to value >NUM_LEDS to reduce on-time
-        if (led_count >= NUM_LEDS) {
-            led_count = 0;
-        }
-
-        if (flicker_count > 30) {
-            flicker_count = 0;
-            flicker_state = !flicker_state;
-        }
-
-        if (led_count < NUM_LEDS && (
-                led_states[led_count] == LED_STATE_ON ||
-                (led_states[led_count] == LED_STATE_FLICKER && flicker_state == 1) ||
-                (led_states[led_count] == LED_STATE_BLINK && blink_state == 1)
-        )) {
-            for (int pin_number = 0; pin_number < NUM_LED_PINS; pin_number++) {
-                switch (led_pin_setup[led_count][pin_number]) {
-                    case PIN_HIGH:
-                        gpio_pin_configure(led_devs[pin_number], led_pins[pin_number], GPIO_OUTPUT);
-                        gpio_pin_set(led_devs[pin_number], led_pins[pin_number], 1);
-                        break;
-                    case PIN_LOW:
-                        gpio_pin_configure(led_devs[pin_number], led_pins[pin_number], GPIO_OUTPUT);
-                        gpio_pin_set(led_devs[pin_number], led_pins[pin_number], 0);
-                        break;
-                    case PIN_FLOAT:
-                        gpio_pin_configure(led_devs[pin_number], led_pins[pin_number], GPIO_INPUT);
-                        break;
-                }
+    if (led_count < NUM_LEDS && (
+            led_states[led_count] == LED_STATE_ON ||
+            (led_states[led_count] == LED_STATE_FLICKER && flicker_state == 1) ||
+            (led_states[led_count] == LED_STATE_BLINK && blink_state == 1)
+    )) {
+        for (int pin_number = 0; pin_number < NUM_LED_PINS; pin_number++) {
+            switch (led_pin_setup[led_count][pin_number]) {
+                case PIN_HIGH:
+                    gpio_pin_configure(led_devs[pin_number], led_pins[pin_number], GPIO_OUTPUT);
+                    gpio_pin_set(led_devs[pin_number], led_pins[pin_number], 1);
+                    break;
+                case PIN_LOW:
+                    gpio_pin_configure(led_devs[pin_number], led_pins[pin_number], GPIO_OUTPUT);
+                    gpio_pin_set(led_devs[pin_number], led_pins[pin_number], 0);
+                break;
+                case PIN_FLOAT:
+                    gpio_pin_configure(led_devs[pin_number], led_pins[pin_number], GPIO_INPUT);
+                    break;
             }
         }
-        else {
+    }
+    else {
             // all pins floating
-            for (int pin_number = 0; pin_number < NUM_LED_PINS; pin_number++) {
-                gpio_pin_configure(led_devs[pin_number], led_pins[pin_number], GPIO_INPUT);
-            }
+        for (int pin_number = 0; pin_number < NUM_LED_PINS; pin_number++) {
+             gpio_pin_configure(led_devs[pin_number], led_pins[pin_number], GPIO_INPUT);
         }
-
-        led_count++;
-        flicker_count++;
-
-        k_sleep(K_MSEC(SLEEP_TIME_MS));
     }
+
+    led_count++;
+    flicker_count++;
 }
 
 #endif  // UNIT_TEST

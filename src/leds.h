@@ -34,7 +34,7 @@ void leds_init(bool enabled = true);
 
 /** Main thread for LED control in Zephyr, performs pin initializations and charlieplexing at 60 Hz
  */
-void leds_update_thread();
+void leds_update_thread(struct k_timer *timer_id);
 
 /** Enables/disables dedicated charging LED if existing or
  *  blinks SOC LED when solar power is coming in.

@@ -29,9 +29,17 @@
 #include "device_status.h"      // log data (error memory, min/max measurements, etc.)
 #include "data_nodes.h"         // for access to internal data via ThingSet
 
+#define LED_FREQUENCY 3         // in milliseconds - (1/320))
+
+struct k_timer led_int_timer;
+
 void main(void)
 {
     printf("Libre Solar Charge Controller: %s\n", CONFIG_BOARD);
+
+    leds_on(0,-1);
+    leds_on(1,-1);
+    leds_on(2,-1);
 
     watchdog_init();
 
@@ -73,17 +81,16 @@ void main(void)
 
     // wait until all threads are spawned before activating the watchdog
     k_sleep(K_MSEC(2500));
-    watchdog_start();
-    sw_watchdog_start();
+
+    k_timer_init(&led_int_timer, leds_update_thread, NULL);
+    k_timer_start(&led_int_timer, K_MSEC(3), K_MSEC(3));
 
     while (1) {
         charger.discharge_control(&bat_conf);
         charger.charge_control(&bat_conf);
 
-        leds_update_1s();
-
         #if DT_OUTPUTS_LOAD_PRESENT
-        leds_update_soc(charger.soc, flags_check(&load.error_flags, ERR_LOAD_SHEDDING));
+        //leds_update_soc(charger.soc, flags_check(&load.error_flags, ERR_LOAD_SHEDDING));
         #else
         leds_update_soc(charger.soc, false);
         #endif
@@ -197,8 +204,6 @@ void ext_mgr_thread()
 
 // 2s delay for control thread as a safety feature: be able to re-flash before starting
 K_THREAD_DEFINE(control_thread_id, 1024, control_thread, NULL, NULL, NULL, 2, 0, 2000);
-
-K_THREAD_DEFINE(leds_thread, 256, leds_update_thread, NULL, NULL, NULL,	4, 0, 100);
 
 K_THREAD_DEFINE(ext_thread, 1024, ext_mgr_thread, NULL, NULL, NULL, 6, 0, 1000);
 
