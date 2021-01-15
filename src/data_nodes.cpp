@@ -22,7 +22,7 @@ LOG_MODULE_REGISTER(data_nodes, CONFIG_LOG_DEFAULT_LEVEL);
 // can be used to configure custom data objects in separate file instead
 // (e.g. data_nodes_custom.cpp)
 #ifndef CONFIG_CUSTOM_DATA_NODES_FILE
-
+#include <soc.h>
 #include "thingset.h"
 #include "hardware.h"
 #include "dcdc.h"
@@ -33,6 +33,8 @@ const char* const device_type = DT_PROP(DT_PATH(pcb), type);
 const char* const hardware_version = DT_PROP(DT_PATH(pcb), version_str);
 const char* const firmware_version = "0.1";
 const char* const firmware_commit = COMMIT_HASH;
+uint32_t flash_size = FLASH_SIZE;
+uint32_t page_size = FLASH_PAGE_SIZE;
 char device_id[9];
 
 static char auth_password[11];
@@ -90,6 +92,12 @@ static DataNode data_nodes[] = {
         ID_INFO, TS_ANY_R, 0),
 
     TS_NODE_UINT32(0x20, "Timestamp_s", &timestamp,
+        ID_INFO, TS_ANY_R | TS_ANY_W, PUB_SER | PUB_NVM),
+
+    TS_NODE_UINT32(0x21, "FlashSize_kb", &flash_size,
+        ID_INFO, TS_ANY_R | TS_ANY_W, PUB_SER | PUB_NVM),
+
+    TS_NODE_UINT32(0x22, "FlashPageSize_kb", &page_size,
         ID_INFO, TS_ANY_R | TS_ANY_W, PUB_SER | PUB_NVM),
 
     // CONFIGURATION //////////////////////////////////////////////////////////
